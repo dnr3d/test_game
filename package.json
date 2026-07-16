@@ -16,6 +16,7 @@
   "dependencies": {
     "@capacitor/android": "^8.4.2",
     "@capacitor/core": "^8.4.2",
+    "gh-pages": "^6.3.0",
     "jimp": "^1.6.1",
     "phaser": "^4.2.1",
     "pngjs": "^7.0.0"
