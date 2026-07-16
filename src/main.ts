@@ -179,11 +179,11 @@ class GameScene extends Phaser.Scene {
       let rx = Phaser.Math.Between(-1900, 1900);
       let ry = Phaser.Math.Between(-1900, 1900);
       if (Math.abs(rx) > 200 || Math.abs(ry) > 200) { 
-        let s = Phaser.Math.FloatBetween(0.8, 1.5);
+        let s = Phaser.Math.FloatBetween(0.8, 1.2);
         this.add.image(rx, ry + 15*s, 'shadow').setScale(s*1.2).setDepth(2);
         let r = this.rocks.create(rx, ry, 'rock_tex');
         r.setScale(s).setDepth(3); 
-        r.refreshBody(); r.setCircle(r.width/2);
+        r.refreshBody(); r.setCircle(r.width/4, r.width/4, r.width/4);
       }
     }
 
