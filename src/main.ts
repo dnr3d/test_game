@@ -42,10 +42,12 @@ class BootScene extends Phaser.Scene {
     this.load.image('player_bow', '/test_game/assets/player_bow.png');
     this.load.image('slime', '/test_game/assets/slime.png');
     this.load.image('bg_tex', '/test_game/assets/bg.png');
-    this.load.image('rock_tex', '/test_game/assets/rock_tex.png');
-    this.load.image('crate_tex', '/test_game/assets/crate_tex.png');
-
+    
     const g = this.make.graphics({x:0,y:0}, false);
+    
+    // Procedural Props (no white background glitch)
+    g.fillStyle(0x666666); g.fillCircle(16, 16, 16); g.generateTexture('rock_tex', 32, 32); g.clear();
+    g.fillStyle(0x8b4513); g.fillRect(0, 0, 32, 32); g.lineStyle(4, 0x4a2e00); g.strokeRect(0, 0, 32, 32); g.generateTexture('crate_tex', 32, 32); g.clear();
     
     // Shadow
     g.fillStyle(0x000000, 0.4); g.fillEllipse(32, 16, 64, 32);
@@ -157,6 +159,9 @@ class GameScene extends Phaser.Scene {
   private joyBase!: Phaser.GameObjects.Arc;
   private joyThumb!: Phaser.GameObjects.Arc;
   private isMagnetActive = false;
+  
+  private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
+  private wasd!: any;
 
   constructor() { super('GameScene'); }
 
@@ -174,11 +179,11 @@ class GameScene extends Phaser.Scene {
       let rx = Phaser.Math.Between(-1900, 1900);
       let ry = Phaser.Math.Between(-1900, 1900);
       if (Math.abs(rx) > 200 || Math.abs(ry) > 200) { 
-        let s = Phaser.Math.FloatBetween(0.5, 1.2);
-        this.add.image(rx, ry + 20*s, 'shadow').setScale(s*1.5).setDepth(2);
+        let s = Phaser.Math.FloatBetween(0.8, 1.5);
+        this.add.image(rx, ry + 15*s, 'shadow').setScale(s*1.2).setDepth(2);
         let r = this.rocks.create(rx, ry, 'rock_tex');
-        r.setScale(s).setDepth(3).setBlendMode(Phaser.BlendModes.MULTIPLY); // Remove white bg
-        r.refreshBody(); r.setCircle(r.width/3);
+        r.setScale(s).setDepth(3); 
+        r.refreshBody(); r.setCircle(r.width/2);
       }
     }
 
@@ -235,6 +240,14 @@ class GameScene extends Phaser.Scene {
       this.joyBase.setVisible(false); this.joyThumb.setVisible(false);
     });
 
+    this.cursors = this.input.keyboard!.createCursorKeys();
+    this.wasd = this.input.keyboard!.addKeys({
+      up: Phaser.Input.Keyboard.KeyCodes.W,
+      down: Phaser.Input.Keyboard.KeyCodes.S,
+      left: Phaser.Input.Keyboard.KeyCodes.A,
+      right: Phaser.Input.Keyboard.KeyCodes.D
+    });
+
     this.scale.on('resize', this.onResize, this);
   }
   
@@ -248,18 +261,28 @@ class GameScene extends Phaser.Scene {
     this.bg.tilePositionX = this.cameras.main.scrollX; 
     this.bg.tilePositionY = this.cameras.main.scrollY;
     
-    this.playerBody.setVelocity(this.joyData.dx * GameState.speed, this.joyData.dy * GameState.speed);
+    let kx = 0; let ky = 0;
+    if (this.cursors.left.isDown || this.wasd.left.isDown) kx = -1;
+    else if (this.cursors.right.isDown || this.wasd.right.isDown) kx = 1;
+    if (this.cursors.up.isDown || this.wasd.up.isDown) ky = -1;
+    else if (this.cursors.down.isDown || this.wasd.down.isDown) ky = 1;
+    if (kx !== 0 && ky !== 0) { kx *= 0.7071; ky *= 0.7071; }
+    
+    let dx = this.joyData.act ? this.joyData.dx : kx;
+    let dy = this.joyData.act ? this.joyData.dy : ky;
+
+    this.playerBody.setVelocity(dx * GameState.speed, dy * GameState.speed);
     
     // Smooth follow visuals
     this.playerVisual.setPosition(this.playerBody.x, this.playerBody.y - 10);
     this.playerShadow.setPosition(this.playerBody.x, this.playerBody.y + 15);
     
     // Walk Animation Wobble
-    if(this.joyData.dx !== 0 || this.joyData.dy !== 0) {
-      this.playerVisual.setFlipX(this.joyData.dx < 0);
+    if(dx !== 0 || dy !== 0) {
+      this.playerVisual.setFlipX(dx < 0);
       this.playerVisual.angle = Math.sin(t / 80) * 10;
-      this.weaponVisual.setFlipX(this.joyData.dx < 0);
-      this.weaponVisual.setPosition(this.playerBody.x + (this.joyData.dx < 0 ? -20 : 20), this.playerBody.y);
+      this.weaponVisual.setFlipX(dx < 0);
+      this.weaponVisual.setPosition(this.playerBody.x + (dx < 0 ? -20 : 20), this.playerBody.y);
     } else {
       this.playerVisual.angle = 0;
       this.weaponVisual.setPosition(this.playerBody.x + (this.playerVisual.flipX ? -20 : 20), this.playerBody.y);
@@ -307,9 +330,9 @@ class GameScene extends Phaser.Scene {
     if (Math.random() < 0.05) {
       let cx = this.playerBody.x+Math.cos(a)*d*0.8;
       let cy = this.playerBody.y+Math.sin(a)*d*0.8;
-      let shc = this.add.image(cx, cy+25, 'shadow').setScale(1.2).setDepth(4);
+      let shc = this.add.image(cx, cy+15, 'shadow').setScale(1.2).setDepth(4);
       let c = this.crates.create(cx, cy, 'crate_tex');
-      c.setScale(1.2).setDepth(5).setBlendMode(Phaser.BlendModes.MULTIPLY);
+      c.setScale(1.2).setDepth(5);
       c.on('destroy', () => shc.destroy());
       this.tweens.add({ targets: c, y: c.y - 10, yoyo: true, repeat: -1, duration: 1000, ease: 'Sine.easeInOut' });
     }
