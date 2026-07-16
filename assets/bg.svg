@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <!-- Soft pastel green background -->
+  <rect width="256" height="256" fill="#a5d6a7"/>
+  
+  <!-- Cute soft grass tufts -->
+  <g fill="#81c784" opacity="0.7">
+    <circle cx="40" cy="40" r="10"/>
+    <circle cx="50" cy="35" r="8"/>
+    <circle cx="30" cy="45" r="6"/>
+    
+    <circle cx="160" cy="180" r="12"/>
+    <circle cx="175" cy="175" r="9"/>
+    <circle cx="145" cy="185" r="7"/>
+    
+    <circle cx="200" cy="60" r="8"/>
+    <circle cx="210" cy="55" r="6"/>
+    
+    <circle cx="80" cy="210" r="9"/>
+    <circle cx="95" cy="200" r="7"/>
+    
+    <circle cx="120" cy="110" r="5"/>
+  </g>
+</svg>
