@@ -3,15 +3,19 @@ import playerSwordImg from '../public/assets/player_sword.svg';
 import playerStaffImg from '../public/assets/player_staff.svg';
 import playerBowImg from '../public/assets/player_bow.svg';
 import slimeImg from '../public/assets/slime.svg';
-import bgImg from '../public/assets/bg.png';
+import bgImg from '../public/assets/bg.svg';
+import rockImg from '../public/assets/rock.svg';
+import crateImg from '../public/assets/crate.svg';
 
 type WeaponType = 'sword' | 'staff' | 'bow';
 
 class GameState {
   static selectedWeapon: WeaponType = 'sword';
   static weaponLevel: number = 1;
+  static speed: number = 150;
+  static magnetRange: number = 50;
   static maxHp: number = 100;
-  static speed: number = 200;
+  static isEvolved: boolean = false;
   static damageMultiplier: number = 1;
   static fireRateMultiplier: number = 1;
   static piercing: number = 1;
@@ -20,7 +24,9 @@ class GameState {
   static reset() {
     this.weaponLevel = 1;
     this.maxHp = 100;
-    this.speed = 200;
+    this.speed = 150;
+    this.magnetRange = 50;
+    this.isEvolved = false;
     this.damageMultiplier = 1;
     this.fireRateMultiplier = 1;
     this.piercing = 1;
@@ -47,12 +53,10 @@ class BootScene extends Phaser.Scene {
     this.load.image('player_bow', playerBowImg);
     this.load.image('slime', slimeImg);
     this.load.image('bg_tex', bgImg);
+    this.load.image('rock_tex', rockImg);
+    this.load.image('crate_tex', crateImg);
     
     const g = this.make.graphics({x:0,y:0}, false);
-    
-    // Procedural Props (no white background glitch)
-    g.fillStyle(0x666666); g.fillCircle(16, 16, 16); g.generateTexture('rock_tex', 32, 32); g.clear();
-    g.fillStyle(0x8b4513); g.fillRect(0, 0, 32, 32); g.lineStyle(4, 0x4a2e00); g.strokeRect(0, 0, 32, 32); g.generateTexture('crate_tex', 32, 32); g.clear();
     
     // Shadow
     g.fillStyle(0x000000, 0.4); g.fillEllipse(32, 16, 64, 32);
@@ -62,19 +66,10 @@ class BootScene extends Phaser.Scene {
     g.fillStyle(0xffffff); g.fillCircle(4, 4, 4);
     g.generateTexture('particle', 8, 8); g.clear();
     
-    // Weapons (Visuals for hand)
-    g.fillStyle(0xaaaaaa); g.fillRect(14, 0, 4, 32); g.fillStyle(0x8b4513); g.fillRect(10, 24, 12, 4); g.generateTexture('sword', 32, 36); g.clear();
-    g.fillStyle(0xffd700); g.fillRect(10, 0, 12, 36); g.generateTexture('sword_evo', 32, 36); g.clear(); 
-    g.fillStyle(0x8b4513); g.fillRect(14, 0, 4, 32); g.fillStyle(0x00ffff); g.fillCircle(16, 4, 8); g.generateTexture('staff', 32, 32); g.clear();
-    g.fillStyle(0x222222); g.fillRect(14, 0, 4, 32); g.fillStyle(0xff00ff); g.fillCircle(16, 4, 12); g.generateTexture('staff_evo', 32, 32); g.clear(); 
-    g.lineStyle(4, 0x8b4513); g.beginPath(); g.arc(16, 16, 14, -Math.PI/2, Math.PI/2); g.strokePath(); g.lineStyle(1, 0xffffff); g.lineBetween(16, 2, 16, 30); g.generateTexture('bow', 32, 32); g.clear();
-    g.lineStyle(6, 0x555555); g.beginPath(); g.arc(16, 16, 14, -Math.PI/2, Math.PI/2); g.strokePath(); g.lineStyle(2, 0xff0000); g.lineBetween(16, 2, 16, 30); g.generateTexture('bow_evo', 32, 32); g.clear(); 
+    // Projectile visual
+    g.fillStyle(0xffffff); g.fillCircle(8, 8, 8); g.generateTexture('projectile', 16, 16); g.clear();
     
-    // Projectiles
-    g.fillStyle(0x00ffff); g.fillCircle(8, 8, 8); g.generateTexture('orb', 16, 16); g.clear();
-    g.fillStyle(0xff00ff); g.fillCircle(12, 12, 12); g.generateTexture('orb_evo', 24, 24); g.clear();
-    g.fillStyle(0x8b4513); g.fillRect(0, 6, 16, 4); g.fillStyle(0xaaaaaa); g.fillTriangle(16, 4, 24, 8, 16, 12); g.generateTexture('arrow', 24, 16); g.clear();
-    g.fillStyle(0xcc0000); g.fillRect(0, 6, 16, 4); g.fillStyle(0xffffff); g.fillTriangle(16, 4, 24, 8, 16, 12); g.generateTexture('arrow_evo', 24, 16); g.clear();
+    // Gems
     g.fillStyle(0x0000ff); g.fillTriangle(8, 0, 16, 8, 8, 16); g.fillTriangle(8, 0, 0, 8, 8, 16); g.generateTexture('gem', 16, 16); g.clear();
   }
   create() { this.scene.start('TitleScene'); }
@@ -147,7 +142,6 @@ class GameScene extends Phaser.Scene {
   private rocks!: Phaser.Physics.Arcade.StaticGroup;
   private crates!: Phaser.Physics.Arcade.Group;
   
-  private lastFired = 0;
   private enemyRate = 1000;
   private lastSpawn = 0;
 
@@ -167,6 +161,7 @@ class GameScene extends Phaser.Scene {
   
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd!: any;
+  private lastFireTime = 0;
 
   constructor() { super('GameScene'); }
 
@@ -177,7 +172,7 @@ class GameScene extends Phaser.Scene {
 
     this.physics.world.setBounds(-2000, -2000, 4000, 4000);
     this.bg = this.add.tileSprite(0, 0, this.scale.width*2, this.scale.height*2, 'bg_tex').setScrollFactor(0);
-    this.bg.setTint(0xcccccc); // slightly darker for contrast
+    this.bg.setTint(0xcccccc);
 
     this.rocks = this.physics.add.staticGroup();
     for(let i=0; i<150; i++) {
@@ -188,7 +183,7 @@ class GameScene extends Phaser.Scene {
         this.add.image(rx, ry + 15*s, 'shadow').setScale(s*1.2).setDepth(2);
         let r = this.rocks.create(rx, ry, 'rock_tex');
         r.setScale(s).setDepth(3); 
-        r.refreshBody(); r.setCircle(r.width/4, r.width/4, r.width/4);
+        r.refreshBody(); r.setCircle(20, 12, 12);
       }
     }
 
@@ -197,7 +192,6 @@ class GameScene extends Phaser.Scene {
     this.gems = this.physics.add.group();
     this.crates = this.physics.add.group();
 
-    // Player setup
     this.playerBody = this.physics.add.sprite(0, 0, 'particle').setVisible(false);
     this.playerBody.setCollideWorldBounds(true).setCircle(20);
     this.cameras.main.startFollow(this.playerBody);
@@ -208,23 +202,17 @@ class GameScene extends Phaser.Scene {
     
     this.physics.add.collider(this.playerBody, this.rocks);
     this.physics.add.collider(this.enemies, this.rocks);
-    this.physics.add.collider(this.enemies, this.enemies); 
-    this.physics.add.collider(this.projectiles, this.rocks, this.hitRock as any, undefined, this);
     this.physics.add.overlap(this.projectiles, this.enemies, this.hitEnemy as any, undefined, this);
-    this.physics.add.overlap(this.playerBody, this.enemies, this.hitPlayer as any, undefined, this);
     this.physics.add.overlap(this.playerBody, this.gems, this.getGem as any, undefined, this);
     this.physics.add.overlap(this.playerBody, this.crates, this.getCrate as any, undefined, this);
 
-    // UI Setup
     this.hpBar = this.add.graphics().setScrollFactor(0).setDepth(100);
     this.xpBar = this.add.graphics().setScrollFactor(0).setDepth(100);
     this.lvlText = this.add.text(this.scale.width - 20, 50, '', { fontFamily: 'Fredoka One', fontSize: '26px', color: '#fff', stroke: '#000', strokeThickness: 5 }).setOrigin(1, 0).setScrollFactor(0).setDepth(100).setShadow(2, 2, '#000', 0, true, true);
-    
     this.add.text(20, 15, 'XP', {fontFamily: 'Fredoka One', fontSize: '18px', color: '#0ff', stroke: '#000', strokeThickness: 4}).setScrollFactor(0).setDepth(100);
     this.add.text(20, 45, 'HP', {fontFamily: 'Fredoka One', fontSize: '18px', color: '#f00', stroke: '#000', strokeThickness: 4}).setScrollFactor(0).setDepth(100);
     this.updUI();
 
-    // Joystick
     this.joyBase = this.add.circle(0,0,50,0xffffff,0.2).setScrollFactor(0).setDepth(90).setVisible(false);
     this.joyThumb = this.add.circle(0,0,25,0xffffff,0.5).setScrollFactor(0).setDepth(91).setVisible(false);
 
@@ -252,7 +240,6 @@ class GameScene extends Phaser.Scene {
       left: Phaser.Input.Keyboard.KeyCodes.A,
       right: Phaser.Input.Keyboard.KeyCodes.D
     });
-
     this.scale.on('resize', this.onResize, this);
   }
   
@@ -260,7 +247,7 @@ class GameScene extends Phaser.Scene {
     if(this.lvlText) this.lvlText.setX(gs.width - 20);
     this.updUI();
   }
-
+  
   update(t: number) {
     if (this.hp <= 0) return;
     this.bg.tilePositionX = this.cameras.main.scrollX; 
@@ -278,11 +265,15 @@ class GameScene extends Phaser.Scene {
 
     this.playerBody.setVelocity(dx * GameState.speed, dy * GameState.speed);
     
-    // Smooth follow visuals
     this.playerVisual.setPosition(this.playerBody.x, this.playerBody.y - 10);
     this.playerShadow.setPosition(this.playerBody.x, this.playerBody.y + 15);
     
-    // Walk Animation Wobble
+    this.gems.getChildren().forEach(c => {
+        let g = c as Phaser.Physics.Arcade.Sprite;
+        let dist = Phaser.Math.Distance.Between(this.playerBody.x, this.playerBody.y, g.x, g.y);
+        if (dist < GameState.magnetRange || this.isMagnetActive) this.physics.moveToObject(g, this.playerBody, 600);
+    });
+
     if(dx !== 0 || dy !== 0) {
       this.playerVisual.setFlipX(dx < 0);
       this.playerVisual.angle = Math.sin(t / 80) * 10;
@@ -298,26 +289,9 @@ class GameScene extends Phaser.Scene {
       if (this.enemyRate > 200) this.enemyRate -= 5;
     }
     
-    this.enemies.getChildren().forEach(c => {
-      let e = c as Phaser.Physics.Arcade.Sprite;
-      if(e.active) { 
-        this.physics.moveToObject(e, this.playerBody, 70); 
-        e.setFlipX(e.body!.velocity.x < 0); 
-        e.angle = Math.sin(t / 100 + e.x) * 15; // wobble
-        if(e.getData('shadow')) e.getData('shadow').setPosition(e.x, e.y + 15);
-      }
-    });
-
-    if (this.isMagnetActive) {
-      this.gems.getChildren().forEach(c => {
-        let g = c as Phaser.Physics.Arcade.Sprite;
-        if(g.active) this.physics.moveToObject(g, this.playerBody, 600);
-      });
-    }
-
-    const fireDelay = (GameState.selectedWeapon === 'sword' ? 1200 : 800) / GameState.fireRateMultiplier;
-    if (t > this.lastFired + fireDelay) {
-      this.attack(); this.lastFired = t;
+    if (t > this.lastFireTime) {
+      this.fireWeapon();
+      this.lastFireTime = t + (GameState.selectedWeapon === 'bow' && GameState.isEvolved ? 300 : 700);
     }
   }
 
@@ -327,125 +301,68 @@ class GameScene extends Phaser.Scene {
     let e = this.enemies.create(sx, sy, 'slime') as any;
     e.setScale(0.5).setDepth(5).hp = 10 * GameState.weaponLevel;
     e.setCircle(45, 19, 19);
-    
-    let sh = this.add.image(sx, sy, 'shadow').setScale(0.8).setDepth(4);
-    e.setData('shadow', sh);
-    e.on('destroy', () => sh.destroy());
-
-    if (Math.random() < 0.05) {
-      let cx = this.playerBody.x+Math.cos(a)*d*0.8;
-      let cy = this.playerBody.y+Math.sin(a)*d*0.8;
-      let shc = this.add.image(cx, cy+15, 'shadow').setScale(1.2).setDepth(4);
-      let c = this.crates.create(cx, cy, 'crate_tex');
-      c.setScale(1.2).setDepth(5);
-      c.on('destroy', () => shc.destroy());
-      this.tweens.add({ targets: c, y: c.y - 10, yoyo: true, repeat: -1, duration: 1000, ease: 'Sine.easeInOut' });
-    }
   }
 
-  attack() {
-    let nd=Infinity, ne: any=null;
-    this.enemies.getChildren().forEach(c => {
-      let e=c as Phaser.Physics.Arcade.Sprite;
-      if(e.active){ let d=Phaser.Math.Distance.BetweenPoints(this.playerBody,e); if(d<nd){ nd=d; ne=e; } }
+  fireWeapon() {
+    let a = this.playerVisual.flipX ? Math.PI : 0;
+    let closestDist = 400; let target = null;
+    this.enemies.getChildren().forEach((e: any) => {
+      let d = Phaser.Math.Distance.Between(this.playerBody.x, this.playerBody.y, e.x, e.y);
+      if (d < closestDist && e.active) { closestDist = d; target = e; }
     });
-    if(!ne || nd>600) return;
+    if (target) { a = Phaser.Math.Angle.Between(this.playerBody.x, this.playerBody.y, (target as any).x, (target as any).y); }
 
-    let ang = Phaser.Math.Angle.BetweenPoints(this.playerBody, ne);
-    let evo = GameState.weaponLevel >= 10;
-    
-    // Attack Animation (Weapon Swing/Thrust)
-    this.tweens.add({
-      targets: this.weaponVisual,
-      angle: this.playerVisual.flipX ? -60 : 60,
-      x: this.weaponVisual.x + Math.cos(ang)*20,
-      y: this.weaponVisual.y + Math.sin(ang)*20,
-      yoyo: true,
-      duration: 150
-    });
+    let wType = GameState.selectedWeapon;
+    let isEvo = GameState.isEvolved;
+    let projSpeed = 400;
 
-    if(GameState.selectedWeapon==='sword'){
-      let tex = evo ? 'sword_evo' : 'sword';
-      let s = this.projectiles.create(this.playerBody.x+Math.cos(ang)*40, this.playerBody.y+Math.sin(ang)*40, tex) as any;
-      s.setScale(evo?2.5:1.5).setRotation(ang+Math.PI/2).setDepth(15).setBlendMode(Phaser.BlendModes.ADD);
-      s.body.setSize(evo?100:60, evo?100:60);
-      s.pierce = 999;
-      this.tweens.add({ targets:s, angle:s.angle+(evo?360:180), duration:evo?300:200, onComplete:()=>s.destroy() });
-    }
-    else if(GameState.selectedWeapon==='staff') {
-      let cnt = evo ? 3 : 1 + GameState.additionalProjectiles;
-      for(let i=0; i<cnt; i++) {
-        this.time.delayedCall(i*100, () => {
-          let o = this.projectiles.create(this.playerBody.x, this.playerBody.y, evo?'orb_evo':'orb') as any;
-          o.pierce = GameState.piercing + (evo?2:0);
-          o.setBlendMode(Phaser.BlendModes.ADD);
-          this.physics.moveToObject(o, ne, evo?400:300);
-          this.addParticleTrail(o, evo?0xff00ff:0x00ffff);
-          this.time.delayedCall(2000, ()=> { if(o.active) o.destroy(); });
-        });
+    let createProj = (angle: number) => {
+      let p = this.projectiles.create(this.playerBody.x, this.playerBody.y, 'projectile');
+      p.setRotation(angle);
+      if (wType === 'sword') {
+        p.setTint(isEvo ? 0xffbb00 : 0xcccccc);
+        p.setScale(isEvo ? 2.5 : 1 + GameState.weaponLevel*0.2);
+        this.physics.velocityFromRotation(angle, 100, p.body.velocity);
+        this.tweens.add({ targets: p, angle: p.angle + (isEvo ? 720 : 180), duration: isEvo ? 400 : 300 });
+        setTimeout(() => p.destroy(), isEvo ? 400 : 300);
+      } else if (wType === 'staff') {
+        p.setTint(isEvo ? 0xff00ff : 0x00ffff);
+        p.setScale(isEvo ? 1.5 : 0.8 + GameState.weaponLevel*0.1);
+        this.physics.velocityFromRotation(angle, projSpeed * (isEvo ? 0.8 : 1), p.body.velocity);
+        setTimeout(() => p.destroy(), 1500);
+      } else if (wType === 'bow') {
+        p.setTint(isEvo ? 0x00ff00 : 0x8b4513);
+        p.setScale(isEvo ? 1.2 : 0.8);
+        this.physics.velocityFromRotation(angle, isEvo ? projSpeed*1.5 : projSpeed, p.body.velocity);
+        setTimeout(() => p.destroy(), 1000);
       }
-    }
-    else if(GameState.selectedWeapon==='bow') {
-      let cnt = evo ? 5 : 1 + GameState.additionalProjectiles;
-      let spread = 0.2;
-      for(let i=0; i<cnt; i++) {
-        let a = ang - (spread*(cnt-1)/2) + (spread*i);
-        let ar = this.projectiles.create(this.playerBody.x, this.playerBody.y, evo?'arrow_evo':'arrow') as any;
-        ar.setRotation(a); ar.pierce = GameState.piercing + (evo?5:0);
-        this.physics.velocityFromRotation(a, evo?800:600, ar.body.velocity);
-        this.addParticleTrail(ar, 0xffffff);
-        this.time.delayedCall(1500, ()=> { if(ar.active) ar.destroy(); });
-      }
-    }
-  }
+      p.refreshBody(); p.setCircle(p.width/2);
+      (p as any).isPiercing = (wType === 'bow' && isEvo);
+      (p as any).hitList = [];
+    };
 
-  addParticleTrail(target: Phaser.Physics.Arcade.Sprite, color: number) {
-    let particles = this.add.particles(0, 0, 'particle', {
-      speed: 20, scale: { start: 1.5, end: 0 }, alpha: { start: 1, end: 0 },
-      tint: color, lifespan: 300, blendMode: 'ADD'
-    });
-    particles.startFollow(target);
-    target.on('destroy', () => { particles.stop(); this.time.delayedCall(300, ()=>particles.destroy()); });
-  }
-
-  hitRock(p: any, _r: any) {
-    if(p.texture.key!=='sword' && p.texture.key!=='sword_evo') p.destroy();
+    if (wType === 'staff' && isEvo) {
+      createProj(a - 0.3); createProj(a); createProj(a + 0.3);
+    } else {
+      createProj(a);
+    }
   }
 
   hitEnemy(p: any, e: any) {
     if(!p.active || !e.active) return;
-    let dmg = 10 * GameState.damageMultiplier * (GameState.weaponLevel >= 10 ? 3 : 1);
-    e.hp -= dmg;
+    if (p.hitList && p.hitList.includes(e)) return;
     
+    let dmg = 10 * GameState.damageMultiplier * (GameState.isEvolved ? 3 : 1);
+    e.hp -= dmg;
     e.setTintFill(0xffffff);
-    this.time.delayedCall(100, () => { if(e.active) e.clearTint(); });
-
+    setTimeout(()=> e.clearTint(), 100);
+    
+    if (p.isPiercing) { p.hitList.push(e); } 
+    else if (GameState.selectedWeapon !== 'sword') { p.destroy(); }
+    
     if(e.hp <= 0) {
       this.gems.create(e.x, e.y, 'gem').setDepth(1);
-      let pEx = this.add.particles(e.x, e.y, 'particle', {
-        speed: 80, scale: { start: 2, end: 0 }, tint: 0x00ff00, lifespan: 400, quantity: 15, blendMode: 'ADD'
-      });
-      pEx.explode(15);
-      this.time.delayedCall(400, ()=>pEx.destroy());
       e.destroy();
-    }
-    
-    if(p.texture.key!=='sword' && p.texture.key!=='sword_evo') {
-      p.pierce--; if(p.pierce<=0) p.destroy();
-    }
-  }
-
-  hitPlayer(_p: any, e: any) {
-    if(!e.active) return;
-    this.hp -= 10; e.destroy(); this.updUI();
-    
-    this.cameras.main.shake(100, 0.01);
-    this.playerVisual.setTint(0xff0000);
-    this.time.delayedCall(150, () => { if(this.playerVisual.active) this.playerVisual.clearTint(); });
-
-    if(this.hp<=0){
-      this.playerVisual.setTint(0xff0000); this.physics.pause();
-      this.time.delayedCall(2000, ()=>this.scene.start('TitleScene'));
     }
   }
 
@@ -453,7 +370,8 @@ class GameScene extends Phaser.Scene {
     g.destroy(); this.xp++;
     if(this.xp>=this.xpNext) {
       this.level++; this.xp=0; this.xpNext=Math.floor(this.xpNext*1.4);
-      this.scene.pause(); this.scene.launch('UpgradeScene');
+      this.scene.pause();
+      this.showUpgradeMenu();
     }
     this.updUI();
   }
@@ -462,9 +380,6 @@ class GameScene extends Phaser.Scene {
     c.destroy();
     let r = Math.random();
     if(r < 0.33) {
-      this.cameras.main.shake(500, 0.05);
-      let flash = this.add.rectangle(this.cameras.main.scrollX, this.cameras.main.scrollY, 4000, 4000, 0xffffff).setOrigin(0).setDepth(200);
-      this.tweens.add({targets:flash, alpha:0, duration:500, onComplete:()=>flash.destroy()});
       this.enemies.getChildren().forEach(e => {
         let en = e as Phaser.Physics.Arcade.Sprite;
         if(en.active && this.cameras.main.worldView.contains(en.x, en.y)) {
@@ -474,75 +389,89 @@ class GameScene extends Phaser.Scene {
     } else if(r < 0.66) {
       this.isMagnetActive = true; this.time.delayedCall(2000, () => this.isMagnetActive = false);
     } else {
-      this.hp = Math.min(GameState.maxHp, this.hp + GameState.maxHp/2);
-      this.updUI();
-      let healTx = this.add.text(this.playerBody.x, this.playerBody.y - 30, '+HEAL', {fontFamily: 'Fredoka One', fontSize:'28px',color:'#0f0', stroke:'#000', strokeThickness:5}).setOrigin(0.5).setDepth(100);
-      this.tweens.add({targets:healTx, y: healTx.y-50, alpha:0, duration:1000, onComplete:()=>healTx.destroy()});
+      this.hp = Math.min(GameState.maxHp, this.hp + 50);
+      this.updateHpBar();
     }
+  }
+
+  showUpgradeMenu() {
+    const cx = this.scale.width / 2;
+    const cy = this.scale.height / 2;
+    const menu = this.add.container(cx, cy).setDepth(200);
+    const bg = this.add.rectangle(0, 0, 400, 500, 0x222222, 0.9).setStrokeStyle(4, 0xffffff);
+    const title = this.add.text(0, -200, 'LEVEL UP!', {fontSize:'48px', color:'#ffff00', fontFamily:'Fredoka One'}).setOrigin(0.5);
+    menu.add([bg, title]);
+
+    let optionsPool = [
+      { id: 'dmg', title: 'Damage Up', desc: '+20% Damage' },
+      { id: 'spd', title: 'Boots of Haste', desc: '+15% Move Speed' },
+      { id: 'mag', title: 'Magnet', desc: 'Expand Pickup Range' },
+      { id: 'hp', title: 'Heart Container', desc: 'Max HP +20 & Heal' },
+    ];
+    
+    if (this.hp < GameState.maxHp) optionsPool.push({ id: 'heal', title: 'Potion', desc: 'Restore 50 HP' });
+    if (GameState.weaponLevel < 4) optionsPool.push({ id: 'weap', title: 'Weapon Upgrade', desc: 'Weapon Level +1' });
+    else if (GameState.weaponLevel === 4 && !GameState.isEvolved) optionsPool = [{ id: 'evo', title: 'EVOLUTION!', desc: 'Unleash true power!' }];
+
+    Phaser.Utils.Array.Shuffle(optionsPool);
+    let chosenOptions = optionsPool.slice(0, Math.min(3, optionsPool.length));
+
+    chosenOptions.forEach((opt, i) => {
+      let card = this.add.rectangle(0, -80 + i*110, 340, 90, 0x444444).setInteractive({useHandCursor:true});
+      let t1 = this.add.text(0, -100 + i*110, opt.title, {fontSize:'24px', color:'#fff', fontFamily:'Fredoka One'}).setOrigin(0.5);
+      let t2 = this.add.text(0, -70 + i*110, opt.desc, {fontSize:'16px', color:'#aaa', fontFamily:'Fredoka One'}).setOrigin(0.5);
+      
+      card.on('pointerover', ()=>card.setFillStyle(0x666666));
+      card.on('pointerout', ()=>card.setFillStyle(0x444444));
+      card.on('pointerdown', ()=> {
+        if (opt.id === 'weap') GameState.weaponLevel++;
+        if (opt.id === 'evo') { GameState.weaponLevel++; GameState.isEvolved = true; }
+        if (opt.id === 'dmg') GameState.damageMultiplier += 0.2;
+        if (opt.id === 'spd') GameState.speed += 25;
+        if (opt.id === 'mag') GameState.magnetRange += 30;
+        if (opt.id === 'hp') { GameState.maxHp += 20; this.hp += 20; }
+        if (opt.id === 'heal') { this.hp = Math.min(GameState.maxHp, this.hp + 50); }
+        
+        this.updateHpBar();
+        this.scene.resume();
+        menu.destroy();
+      });
+      menu.add([card, t1, t2]);
+    });
+  }
+
+  takeDamage() {
+    if(this.hp <= 0) return;
+    this.hp -= 10;
+    this.updateHpBar();
+    this.cameras.main.shake(100, 0.01);
+    if(this.hp <= 0) {
+      this.add.text(this.scale.width/2, this.scale.height/2, 'GAME OVER', {fontSize:'64px', color:'#ff0000', fontFamily:'Fredoka One'})
+          .setOrigin(0.5).setScrollFactor(0).setDepth(100);
+      setTimeout(() => { GameState.reset(); this.scene.start('TitleScene'); }, 2000);
+    }
+  }
+
+  updateHpBar() {
+    this.hpBar.clear();
+    this.hpBar.lineStyle(4, 0xffffff); this.hpBar.strokeRect(10, 50, 300, 20);
+    this.hpBar.fillStyle(0xff0000); this.hpBar.fillRect(12, 52, 296 * (this.hp / GameState.maxHp), 16);
   }
 
   updUI(){ 
     const bw = Math.min(this.scale.width - 100, 300);
-    
-    // XP Bar
     this.xpBar.clear();
     this.xpBar.fillStyle(0x000000, 0.8); this.xpBar.fillRect(50, 15, bw, 20);
     this.xpBar.fillStyle(0x00ffff, 1); this.xpBar.fillRect(52, 17, (bw-4) * (this.xp/this.xpNext), 16);
     this.xpBar.lineStyle(2, 0xffffff); this.xpBar.strokeRect(50, 15, bw, 20);
-
-    // HP Bar
-    this.hpBar.clear();
-    this.hpBar.fillStyle(0x000000, 0.8); this.hpBar.fillRect(50, 45, bw, 20);
-    this.hpBar.fillStyle(0xff0000, 1); this.hpBar.fillRect(52, 47, (bw-4) * (this.hp/GameState.maxHp), 16);
-    this.hpBar.lineStyle(2, 0xffffff); this.hpBar.strokeRect(50, 45, bw, 20);
-
-    this.lvlText.setText(`LVL: ${this.level}`);
-  }
-}
-
-class UpgradeScene extends Phaser.Scene {
-  constructor() { super('UpgradeScene'); }
-  create() {
-    this.add.rectangle(0,0,this.scale.width,this.scale.height,0x000000,0.85).setOrigin(0);
-    this.add.text(this.scale.width/2, 60, 'LEVEL UP!', {fontFamily: 'Fredoka One', fontSize:'48px',color:'#ffd700', stroke:'#000', strokeThickness:8}).setOrigin(0.5).setShadow(3, 3, '#000', 0, true, true);
-
-    let upgrades = [
-      { t: 'Weapon Up', d: 'Increase Weapon Level', fn: ()=>GameState.weaponLevel++ },
-      { t: 'Max HP', d: '+20 Max Health', fn: ()=>GameState.maxHp+=20 },
-      { t: 'Speed', d: 'Move faster', fn: ()=>GameState.speed+=30 },
-      { t: 'Damage', d: '+20% Damage', fn: ()=>GameState.damageMultiplier+=0.2 },
-      { t: 'Fire Rate', d: '+20% Attack Speed', fn: ()=>GameState.fireRateMultiplier+=0.2 },
-      { t: 'Projectiles', d: '+1 Projectile', fn: ()=>GameState.additionalProjectiles++ },
-      { t: 'Piercing', d: '+1 Enemy Pierce', fn: ()=>GameState.piercing++ }
-    ];
-    
-    Phaser.Utils.Array.Shuffle(upgrades);
-    let picks = upgrades.slice(0, 3);
-    
-    const cx = this.scale.width/2;
-    const startY = 160;
-    const spacing = 130;
-    const cardW = Math.min(this.scale.width * 0.9, 450);
-    
-    picks.forEach((u, i) => {
-      let y = startY + i*spacing;
-      let bg = this.add.rectangle(cx, y, cardW, 110, 0x222222, 0.9);
-      bg.setStrokeStyle(4, 0x8b0000);
-      
-      this.add.text(cx, y-20, u.t, {fontFamily: 'Fredoka One', fontSize:'28px',color:'#fff', stroke:'#000', strokeThickness:5}).setOrigin(0.5);
-      this.add.text(cx, y+20, u.d, {fontFamily: 'Fredoka One', fontSize:'18px',color:'#ccc'}).setOrigin(0.5);
-      
-      createBtnInteractive(this, bg, () => {
-         u.fn(); this.scene.stop(); this.scene.resume('GameScene');
-      });
-    });
+    if(this.lvlText) this.lvlText.setText(`LVL: ${this.level}`);
   }
 }
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO, width: window.innerWidth, height: window.innerHeight, parent: 'game-container',
   physics: { default: 'arcade', arcade: { gravity: { x: 0, y: 0 }, debug: false } },
-  scene: [BootScene, TitleScene, MenuScene, GameScene, UpgradeScene],
+  scene: [BootScene, TitleScene, MenuScene, GameScene],
   scale: { mode: Phaser.Scale.RESIZE, autoCenter: Phaser.Scale.CENTER_BOTH }
 };
 new Phaser.Game(config);
