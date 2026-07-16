@@ -133,7 +133,6 @@ class GameScene extends Phaser.Scene {
   private playerBody!: Phaser.Physics.Arcade.Sprite;
   private playerVisual!: Phaser.GameObjects.Image;
   private playerShadow!: Phaser.GameObjects.Image;
-  private weaponVisual!: Phaser.GameObjects.Image;
   
   private bg!: Phaser.GameObjects.TileSprite;
   private enemies!: Phaser.Physics.Arcade.Group;
@@ -198,7 +197,6 @@ class GameScene extends Phaser.Scene {
     
     this.playerShadow = this.add.image(0, 15, 'shadow').setScale(1.2).setDepth(4);
     this.playerVisual = this.add.image(0, 0, `player_${GameState.selectedWeapon}`).setScale(0.5).setDepth(10);
-    this.weaponVisual = this.add.image(15, 0, GameState.selectedWeapon).setDepth(11);
     
     this.physics.add.collider(this.playerBody, this.rocks);
     this.physics.add.collider(this.enemies, this.rocks);
@@ -208,9 +206,9 @@ class GameScene extends Phaser.Scene {
 
     this.hpBar = this.add.graphics().setScrollFactor(0).setDepth(100);
     this.xpBar = this.add.graphics().setScrollFactor(0).setDepth(100);
-    this.lvlText = this.add.text(this.scale.width - 20, 50, '', { fontFamily: 'Fredoka One', fontSize: '26px', color: '#fff', stroke: '#000', strokeThickness: 5 }).setOrigin(1, 0).setScrollFactor(0).setDepth(100).setShadow(2, 2, '#000', 0, true, true);
-    this.add.text(20, 15, 'XP', {fontFamily: 'Fredoka One', fontSize: '18px', color: '#0ff', stroke: '#000', strokeThickness: 4}).setScrollFactor(0).setDepth(100);
-    this.add.text(20, 45, 'HP', {fontFamily: 'Fredoka One', fontSize: '18px', color: '#f00', stroke: '#000', strokeThickness: 4}).setScrollFactor(0).setDepth(100);
+    this.lvlText = this.add.text(this.scale.width - 20, 45, '', { fontFamily: 'Fredoka One', fontSize: '26px', color: '#fff', stroke: '#000', strokeThickness: 5 }).setOrigin(1, 0).setScrollFactor(0).setDepth(100).setShadow(2, 2, '#000', 0, true, true);
+    this.add.text(12, 13, 'XP', {fontFamily: 'Fredoka One', fontSize: '18px', color: '#0ff', stroke: '#000', strokeThickness: 4}).setScrollFactor(0).setDepth(100);
+    this.add.text(12, 48, 'HP', {fontFamily: 'Fredoka One', fontSize: '18px', color: '#f00', stroke: '#000', strokeThickness: 4}).setScrollFactor(0).setDepth(100);
     this.updUI();
 
     this.joyBase = this.add.circle(0,0,50,0xffffff,0.2).setScrollFactor(0).setDepth(90).setVisible(false);
@@ -277,11 +275,8 @@ class GameScene extends Phaser.Scene {
     if(dx !== 0 || dy !== 0) {
       this.playerVisual.setFlipX(dx < 0);
       this.playerVisual.angle = Math.sin(t / 80) * 10;
-      this.weaponVisual.setFlipX(dx < 0);
-      this.weaponVisual.setPosition(this.playerBody.x + (dx < 0 ? -20 : 20), this.playerBody.y);
     } else {
       this.playerVisual.angle = 0;
-      this.weaponVisual.setPosition(this.playerBody.x + (this.playerVisual.flipX ? -20 : 20), this.playerBody.y);
     }
 
     if (t > this.lastSpawn + this.enemyRate) {
