@@ -200,6 +200,7 @@ class GameScene extends Phaser.Scene {
     
     this.physics.add.collider(this.playerBody, this.rocks);
     this.physics.add.collider(this.enemies, this.rocks);
+    this.physics.add.overlap(this.playerBody, this.enemies, this.hitPlayer as any, undefined, this);
     this.physics.add.overlap(this.projectiles, this.enemies, this.hitEnemy as any, undefined, this);
     this.physics.add.overlap(this.playerBody, this.gems, this.getGem as any, undefined, this);
     this.physics.add.overlap(this.playerBody, this.crates, this.getCrate as any, undefined, this);
@@ -278,6 +279,15 @@ class GameScene extends Phaser.Scene {
     } else {
       this.playerVisual.angle = 0;
     }
+
+    this.enemies.getChildren().forEach(c => {
+      let e = c as Phaser.Physics.Arcade.Sprite;
+      if(e.active) { 
+        this.physics.moveToObject(e, this.playerBody, 80); 
+        e.setFlipX(e.body!.velocity.x < 0); 
+        e.angle = Math.sin(t / 100 + e.x) * 15;
+      }
+    });
 
     if (t > this.lastSpawn + this.enemyRate) {
       this.spawn(); this.lastSpawn = t;
@@ -359,6 +369,14 @@ class GameScene extends Phaser.Scene {
       this.gems.create(e.x, e.y, 'gem').setDepth(1);
       e.destroy();
     }
+  }
+
+  hitPlayer(_p: any, e: any) {
+    if(!e.active) return;
+    e.destroy();
+    this.takeDamage();
+    this.playerVisual.setTint(0xff0000);
+    setTimeout(() => { if(this.playerVisual.active) this.playerVisual.clearTint(); }, 150);
   }
 
   getGem(_p: any, g: any) {
