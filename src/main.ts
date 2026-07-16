@@ -478,6 +478,7 @@ class GameScene extends Phaser.Scene {
     this.xpBar.fillStyle(0x00ffff, 1); this.xpBar.fillRect(52, 17, (bw-4) * (this.xp/this.xpNext), 16);
     this.xpBar.lineStyle(2, 0xffffff); this.xpBar.strokeRect(50, 15, bw, 20);
     if(this.lvlText) this.lvlText.setText(`LVL: ${this.level}`);
+    this.updateHpBar();
   }
 }
 
