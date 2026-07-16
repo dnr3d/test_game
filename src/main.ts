@@ -198,7 +198,7 @@ class GameScene extends Phaser.Scene {
   private enemyRate = 1000;
   private lastSpawn = 0;
 
-  private hp = 100;
+  public hp = 100;
   private xp = 0;
   private level = 1;
   private xpNext = 5;
@@ -295,6 +295,8 @@ class GameScene extends Phaser.Scene {
       right: Phaser.Input.Keyboard.KeyCodes.D
     });
     this.scale.on('resize', this.onResize, this);
+    
+    this.events.on('resume', () => { this.updUI(); });
   }
   
   onResize(gs: Phaser.Structs.Size) {
@@ -473,7 +475,7 @@ class GameScene extends Phaser.Scene {
     if(this.xp>=this.xpNext) {
       this.level++; this.xp=0; this.xpNext=Math.floor(this.xpNext*1.4);
       this.scene.pause();
-      this.showUpgradeMenu();
+      this.scene.launch('UpgradeScene');
     }
     this.updUI();
   }
@@ -494,62 +496,6 @@ class GameScene extends Phaser.Scene {
       this.hp = Math.min(GameState.maxHp, this.hp + 50);
       this.updateHpBar();
     }
-  }
-
-  showUpgradeMenu() {
-    const cx = this.scale.width / 2;
-    const cy = this.scale.height / 2;
-    const menu = this.add.container(cx, cy).setDepth(200);
-    const bg = this.add.rectangle(0, 0, 400, 500, 0x222222, 0.9).setStrokeStyle(4, 0xffffff);
-    const title = this.add.text(0, -200, 'LEVEL UP!', {fontSize:'48px', color:'#ffff00', fontFamily:'Fredoka One'}).setOrigin(0.5);
-    menu.add([bg, title]);
-
-    let optionsPool = [
-      { id: 'dmg', title: 'Damage Up', desc: '+20% Damage' },
-      { id: 'spd', title: 'Boots of Haste', desc: '+15% Move Speed' },
-      { id: 'mag', title: 'Magnet', desc: 'Expand Pickup Range' },
-      { id: 'hp', title: 'Heart Container', desc: 'Max HP +20 & Heal' },
-      { id: 'xp', title: 'Tome of Wisdom', desc: '+20% XP Gain' },
-      { id: 'crit', title: 'Sharp Eye', desc: '+15% Crit Chance' },
-      { id: 'critdmg', title: 'Assassin', desc: '+50% Crit Damage' },
-      { id: 'regen', title: 'Regeneration', desc: 'Heal 1 HP / sec' },
-      { id: 'armor', title: 'Iron Skin', desc: '-1 Damage Taken' }
-    ];
-    
-    if (this.hp < GameState.maxHp) optionsPool.push({ id: 'heal', title: 'Potion', desc: 'Restore 50 HP' });
-    if (GameState.weaponLevel < 4) optionsPool.push({ id: 'weap', title: 'Weapon Upgrade', desc: 'Weapon Level +1' });
-    else if (GameState.weaponLevel === 4 && !GameState.isEvolved) optionsPool = [{ id: 'evo', title: 'EVOLUTION!', desc: 'Unleash true power!' }];
-
-    Phaser.Utils.Array.Shuffle(optionsPool);
-    let chosenOptions = optionsPool.slice(0, Math.min(3, optionsPool.length));
-
-    chosenOptions.forEach((opt, i) => {
-      let card = this.add.rectangle(0, -80 + i*110, 340, 90, 0x444444).setInteractive({useHandCursor:true});
-      let t1 = this.add.text(0, -100 + i*110, opt.title, {fontFamily: 'Fredoka One', fontSize:'24px', color:'#fff', stroke:'#000', strokeThickness:4}).setOrigin(0.5);
-      let t2 = this.add.text(0, -70 + i*110, opt.desc, {fontFamily: 'Fredoka One', fontSize:'16px', color:'#aaa', stroke:'#000', strokeThickness:2}).setOrigin(0.5);
-      
-      card.on('pointerover', ()=>card.setFillStyle(0x666666));
-      card.on('pointerout', ()=>card.setFillStyle(0x444444));
-      card.on('pointerdown', ()=> {
-        if (opt.id === 'weap') GameState.weaponLevel++;
-        if (opt.id === 'evo') { GameState.weaponLevel++; GameState.isEvolved = true; }
-        if (opt.id === 'dmg') GameState.damageMultiplier += 0.2;
-        if (opt.id === 'spd') GameState.speed += 25;
-        if (opt.id === 'mag') GameState.magnetRange += 30;
-        if (opt.id === 'hp') { GameState.maxHp += 20; this.hp += 20; }
-        if (opt.id === 'heal') { this.hp = Math.min(GameState.maxHp, this.hp + 50); }
-        if (opt.id === 'xp') GameState.xpBonus += 0.2;
-        if (opt.id === 'crit') GameState.critChance += 0.15;
-        if (opt.id === 'critdmg') GameState.critDamage += 0.5;
-        if (opt.id === 'regen') GameState.regen += 1;
-        if (opt.id === 'armor') GameState.armor += 1;
-        
-        this.updateHpBar();
-        this.scene.resume();
-        menu.destroy();
-      });
-      menu.add([card, t1, t2]);
-    });
   }
 
   takeDamage() {
@@ -582,10 +528,71 @@ class GameScene extends Phaser.Scene {
   }
 }
 
+class UpgradeScene extends Phaser.Scene {
+  constructor() { super('UpgradeScene'); }
+  create() {
+    this.add.rectangle(0,0,this.scale.width,this.scale.height,0x000000,0.85).setOrigin(0);
+    this.add.text(this.scale.width/2, 60, 'LEVEL UP!', {fontFamily: 'Fredoka One', fontSize:'48px',color:'#ffd700', stroke:'#000', strokeThickness:8}).setOrigin(0.5).setShadow(3, 3, '#000', 0, true, true);
+
+    let optionsPool = [
+      { id: 'dmg', title: 'Damage Up', desc: '+20% Damage' },
+      { id: 'spd', title: 'Boots of Haste', desc: '+15% Move Speed' },
+      { id: 'mag', title: 'Magnet', desc: 'Expand Pickup Range' },
+      { id: 'hp', title: 'Heart Container', desc: 'Max HP +20 & Heal' },
+      { id: 'xp', title: 'Tome of Wisdom', desc: '+20% XP Gain' },
+      { id: 'crit', title: 'Sharp Eye', desc: '+15% Crit Chance' },
+      { id: 'critdmg', title: 'Assassin', desc: '+50% Crit Damage' },
+      { id: 'regen', title: 'Regeneration', desc: 'Heal 1 HP / sec' },
+      { id: 'armor', title: 'Iron Skin', desc: '-1 Damage Taken' }
+    ];
+    
+    let gameScene = this.scene.get('GameScene') as any;
+
+    if (gameScene.hp < GameState.maxHp) optionsPool.push({ id: 'heal', title: 'Potion', desc: 'Restore 50 HP' });
+    if (GameState.weaponLevel < 4) optionsPool.push({ id: 'weap', title: 'Weapon Upgrade', desc: 'Weapon Level +1' });
+    else if (GameState.weaponLevel === 4 && !GameState.isEvolved) optionsPool = [{ id: 'evo', title: 'EVOLUTION!', desc: 'Unleash true power!' }];
+
+    Phaser.Utils.Array.Shuffle(optionsPool);
+    let chosenOptions = optionsPool.slice(0, Math.min(3, optionsPool.length));
+
+    const cx = this.scale.width/2;
+    const startY = 160;
+    const spacing = 130;
+    const cardW = Math.min(this.scale.width * 0.9, 450);
+
+    chosenOptions.forEach((opt, i) => {
+      let y = startY + i*spacing;
+      let card = this.add.rectangle(cx, y, cardW, 110, 0x222222, 0.9);
+      card.setStrokeStyle(4, 0x8b0000);
+      
+      this.add.text(cx, y - 20, opt.title, {fontFamily: 'Fredoka One', fontSize:'24px', color:'#fff', stroke:'#000', strokeThickness:4}).setOrigin(0.5);
+      this.add.text(cx, y + 20, opt.desc, {fontFamily: 'Fredoka One', fontSize:'16px', color:'#aaa', stroke:'#000', strokeThickness:2}).setOrigin(0.5);
+      
+      createBtnInteractive(this, card, () => {
+        if (opt.id === 'weap') GameState.weaponLevel++;
+        if (opt.id === 'evo') { GameState.weaponLevel++; GameState.isEvolved = true; }
+        if (opt.id === 'dmg') GameState.damageMultiplier += 0.2;
+        if (opt.id === 'spd') GameState.speed += 25;
+        if (opt.id === 'mag') GameState.magnetRange += 30;
+        if (opt.id === 'hp') { GameState.maxHp += 20; gameScene.hp += 20; }
+        if (opt.id === 'heal') { gameScene.hp = Math.min(GameState.maxHp, gameScene.hp + 50); }
+        if (opt.id === 'xp') GameState.xpBonus += 0.2;
+        if (opt.id === 'crit') GameState.critChance += 0.15;
+        if (opt.id === 'critdmg') GameState.critDamage += 0.5;
+        if (opt.id === 'regen') GameState.regen += 1;
+        if (opt.id === 'armor') GameState.armor += 1;
+        
+        this.scene.stop();
+        this.scene.resume('GameScene');
+      });
+    });
+  }
+}
+
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO, width: window.innerWidth, height: window.innerHeight, parent: 'game-container',
   physics: { default: 'arcade', arcade: { gravity: { x: 0, y: 0 }, debug: false } },
-  scene: [BootScene, TitleScene, MenuScene, GameScene],
+  scene: [BootScene, TitleScene, MenuScene, GameScene, UpgradeScene],
   scale: { mode: Phaser.Scale.RESIZE, autoCenter: Phaser.Scale.CENTER_BOTH }
 };
 new Phaser.Game(config);
