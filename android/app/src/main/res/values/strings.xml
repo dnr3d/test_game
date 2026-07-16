@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">VampireClone</string>
+    <string name="title_activity_main">VampireClone</string>
+    <string name="package_name">com.dani.vampireclone</string>
+    <string name="custom_url_scheme">com.dani.vampireclone</string>
+</resources>
