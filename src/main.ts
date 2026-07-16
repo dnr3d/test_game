@@ -37,13 +37,13 @@ function createBtnInteractive(scene: Phaser.Scene, bg: Phaser.GameObjects.Rectan
 class BootScene extends Phaser.Scene {
   constructor() { super('BootScene'); }
   preload() {
-    this.load.image('player_sword', 'assets/player_sword.png');
-    this.load.image('player_staff', 'assets/player_staff.png');
-    this.load.image('player_bow', 'assets/player_bow.png');
-    this.load.image('slime', 'assets/slime.png');
-    this.load.image('bg_tex', 'assets/bg.png');
-    this.load.image('rock_tex', 'assets/rock_tex.png');
-    this.load.image('crate_tex', 'assets/crate_tex.png');
+    this.load.image('player_sword', '/test_game/assets/player_sword.png');
+    this.load.image('player_staff', '/test_game/assets/player_staff.png');
+    this.load.image('player_bow', '/test_game/assets/player_bow.png');
+    this.load.image('slime', '/test_game/assets/slime.png');
+    this.load.image('bg_tex', '/test_game/assets/bg.png');
+    this.load.image('rock_tex', '/test_game/assets/rock_tex.png');
+    this.load.image('crate_tex', '/test_game/assets/crate_tex.png');
 
     const g = this.make.graphics({x:0,y:0}, false);
     
