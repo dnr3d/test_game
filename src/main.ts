@@ -1,11 +1,4 @@
 import Phaser from 'phaser';
-import playerSwordImg from '../public/assets/player_sword.svg';
-import playerStaffImg from '../public/assets/player_staff.svg';
-import playerBowImg from '../public/assets/player_bow.svg';
-import slimeImg from '../public/assets/slime.svg';
-import bgImg from '../public/assets/bg.svg';
-import rockImg from '../public/assets/rock.svg';
-import crateImg from '../public/assets/crate.svg';
 
 type WeaponType = 'sword' | 'staff' | 'bow';
 
@@ -20,6 +13,12 @@ class GameState {
   static fireRateMultiplier: number = 1;
   static piercing: number = 1;
   static additionalProjectiles: number = 0;
+  
+  static xpBonus: number = 1;
+  static critChance: number = 0;
+  static critDamage: number = 2;
+  static regen: number = 0;
+  static armor: number = 0;
 
   static reset() {
     this.weaponLevel = 1;
@@ -31,6 +30,11 @@ class GameState {
     this.fireRateMultiplier = 1;
     this.piercing = 1;
     this.additionalProjectiles = 0;
+    this.xpBonus = 1;
+    this.critChance = 0;
+    this.critDamage = 2;
+    this.regen = 0;
+    this.armor = 0;
   }
 }
 
@@ -48,29 +52,78 @@ function createBtnInteractive(scene: Phaser.Scene, bg: Phaser.GameObjects.Rectan
 class BootScene extends Phaser.Scene {
   constructor() { super('BootScene'); }
   preload() {
-    this.load.image('player_sword', playerSwordImg);
-    this.load.image('player_staff', playerStaffImg);
-    this.load.image('player_bow', playerBowImg);
-    this.load.image('slime', slimeImg);
-    this.load.image('bg_tex', bgImg);
-    this.load.image('rock_tex', rockImg);
-    this.load.image('crate_tex', crateImg);
-    
     const g = this.make.graphics({x:0,y:0}, false);
     
-    // Shadow
-    g.fillStyle(0x000000, 0.4); g.fillEllipse(32, 16, 64, 32);
-    g.generateTexture('shadow', 64, 32); g.clear();
+    // Generator function for 16x16 pixel art, scaled by 4 (64x64)
+    const drawSprite = (key: string, pal: any, data: string[]) => {
+      data.forEach((row, y) => {
+        for(let x=0; x<row.length; x++) {
+          let c = row[x];
+          if(c !== '.' && pal[c]) { g.fillStyle(pal[c]); g.fillRect(x*4, y*4, 4, 4); }
+        }
+      });
+      g.generateTexture(key, 64, 64); g.clear();
+    };
 
-    // Particle
-    g.fillStyle(0xffffff); g.fillCircle(4, 4, 4);
-    g.generateTexture('particle', 8, 8); g.clear();
+    let pPal = {'K':0x888888, 'F':0xffccaa, 'E':0x000000, 'H':0x333333, 'R':0xff0000, 'B':0x0000ff};
+    let knight = [
+      "......KKKK......", ".....KKKKKK.....", "....KK.KK.KK....", "....KKEKKEKK....",
+      "....KKKKKKKK....", "....KKKKKKKK....", ".....KKKKKK.....", "......KKKK......",
+      "....KKKKKKKK....", "...KKK.KK.KKK...", "..KKK..KK..KKK..", "..KK...KK...KK..",
+      "..K....KK....K..", "......KKKK......", ".....KK..KK.....", "....KKK..KKK...."
+    ];
+    let mage = [
+      ".......BB.......", "......BBBB......", ".....BBBBBB.....", "....FBBBBBBF....",
+      "....FFEFFEFF....", "....FFFFFFFF....", ".....FFFFFF.....", "......BBBB......",
+      "....BBBBBBBB....", "...BBB.BB.BBB...", "..BBB..BB..BBB..", "..BB...BB...BB..",
+      "..B....BB....B..", "......BBBB......", ".....BB..BB.....", "....BBB..BBB...."
+    ];
+    let archer = [
+      "......HHHH......", ".....HHHHHH.....", "....FHHHHHHF....", "....FFEFFEFF....",
+      "....FFFFFFFF....", "....FFFFFFFF....", ".....FFFFFF.....", "......HHHH......",
+      "....HHHHHHHH....", "...HHH.HH.HHH...", "..HHH..HH..HHH..", "..HH...HH...HH..",
+      "..H....HH....H..", "......HHHH......", ".....HH..HH.....", "....HHH..HHH...."
+    ];
+    drawSprite('player_sword', pPal, knight);
+    drawSprite('player_staff', pPal, mage);
+    drawSprite('player_bow', pPal, archer);
+
+    let ePal = {'G':0x44aa44, 'E':0x000000, 'D':0x228822};
+    let slime = [
+      "................", "................", "................", "................",
+      "......GGGG......", "....GGGGGGGG....", "...GGGGGGGGGG...", "..GGGGGGGGGGGG..",
+      "..GGEGGGGGGGGE..", ".GGGGGGGGGGGGGG.", ".GGGGGGGGGGGGGG.", ".GGGGGDGGGGGGGG.",
+      ".GGGGGDGGGGGGGG.", "..GGGGDDGGGGGG..", "...GGGGGGGGGG...", "................"
+    ];
+    drawSprite('slime', ePal, slime);
     
-    // Projectile visual
+    // UI Elements and VFX
+    g.fillStyle(0x000000, 0.4); g.fillEllipse(32, 16, 64, 32); g.generateTexture('shadow', 64, 32); g.clear();
+    g.fillStyle(0xffffff); g.fillCircle(8, 8, 8); g.generateTexture('particle', 16, 16); g.clear();
     g.fillStyle(0xffffff); g.fillCircle(8, 8, 8); g.generateTexture('projectile', 16, 16); g.clear();
-    
-    // Gems
     g.fillStyle(0x0000ff); g.fillTriangle(8, 0, 16, 8, 8, 16); g.fillTriangle(8, 0, 0, 8, 8, 16); g.generateTexture('gem', 16, 16); g.clear();
+    
+    // Grid BG
+    g.lineStyle(1, 0x333333); g.strokeRect(0, 0, 100, 100); g.generateTexture('bg_tex', 100, 100); g.clear();
+    
+    // Weapons
+    // Sword
+    g.fillStyle(0xcccccc); g.fillRect(12, 0, 8, 24); g.fillStyle(0x8b4513); g.fillRect(4, 24, 24, 6); g.fillRect(12, 30, 8, 10);
+    g.generateTexture('sword', 32, 40); g.clear();
+    // Staff
+    g.fillStyle(0x8b4513); g.fillRect(12, 10, 8, 30); g.fillStyle(0x00ffff); g.fillCircle(16, 10, 10);
+    g.generateTexture('staff', 32, 40); g.clear();
+    // Bow
+    g.lineStyle(4, 0x8b4513); g.beginPath(); g.arc(16, 20, 16, Math.PI/2, Math.PI*1.5); g.strokePath();
+    g.lineStyle(2, 0xffffff); g.beginPath(); g.moveTo(16, 4); g.lineTo(16, 36); g.strokePath();
+    g.generateTexture('bow', 32, 40); g.clear();
+    
+    // Rock
+    g.fillStyle(0x666666); g.fillCircle(32, 32, 32); g.fillStyle(0x444444); g.fillCircle(24, 24, 10); g.generateTexture('rock_tex', 64, 64); g.clear();
+    
+    // Crate
+    g.fillStyle(0x8b4513); g.fillRect(0,0,64,64); g.lineStyle(4, 0x5c2b0c); g.strokeRect(0,0,64,64);
+    g.beginPath(); g.moveTo(0,0); g.lineTo(64,64); g.strokePath(); g.generateTexture('crate_tex', 64, 64); g.clear();
   }
   create() { this.scene.start('TitleScene'); }
 }
@@ -132,6 +185,7 @@ class MenuScene extends Phaser.Scene {
 class GameScene extends Phaser.Scene {
   private playerBody!: Phaser.Physics.Arcade.Sprite;
   private playerVisual!: Phaser.GameObjects.Image;
+  private weaponVisual!: Phaser.GameObjects.Image;
   private playerShadow!: Phaser.GameObjects.Image;
   
   private bg!: Phaser.GameObjects.TileSprite;
@@ -197,6 +251,7 @@ class GameScene extends Phaser.Scene {
     
     this.playerShadow = this.add.image(0, 15, 'shadow').setScale(1.2).setDepth(4);
     this.playerVisual = this.add.image(0, 0, `player_${GameState.selectedWeapon}`).setScale(0.5).setDepth(10);
+    this.weaponVisual = this.add.image(20, 0, GameState.selectedWeapon).setDepth(11);
     
     this.physics.add.collider(this.playerBody, this.rocks);
     this.physics.add.collider(this.enemies, this.rocks);
@@ -276,8 +331,13 @@ class GameScene extends Phaser.Scene {
     if(dx !== 0 || dy !== 0) {
       this.playerVisual.setFlipX(dx < 0);
       this.playerVisual.angle = Math.sin(t / 80) * 10;
+      this.weaponVisual.setFlipX(dx < 0);
+      this.weaponVisual.setPosition(this.playerBody.x + (dx < 0 ? -20 : 20), this.playerBody.y);
+      this.weaponVisual.angle = Math.sin(t / 80) * 20;
     } else {
       this.playerVisual.angle = 0;
+      this.weaponVisual.setPosition(this.playerBody.x + (this.playerVisual.flipX ? -20 : 20), this.playerBody.y);
+      this.weaponVisual.angle = 0;
     }
 
     this.enemies.getChildren().forEach(c => {
@@ -292,6 +352,12 @@ class GameScene extends Phaser.Scene {
     if (t > this.lastSpawn + this.enemyRate) {
       this.spawn(); this.lastSpawn = t;
       if (this.enemyRate > 200) this.enemyRate -= 5;
+    }
+    
+    // Regen logic
+    if (GameState.regen > 0 && t % 1000 < 20 && this.hp < GameState.maxHp) {
+      this.hp = Math.min(GameState.maxHp, this.hp + GameState.regen);
+      this.updateHpBar();
     }
     
     if (t > this.lastFireTime) {
@@ -325,7 +391,7 @@ class GameScene extends Phaser.Scene {
       let p = this.projectiles.create(this.playerBody.x, this.playerBody.y, 'projectile');
       p.setRotation(angle);
       if (wType === 'sword') {
-        p.setTint(isEvo ? 0xffbb00 : 0xcccccc);
+        p.setTexture(isEvo ? 'sword_evo' : 'sword');
         p.setScale(isEvo ? 2.5 : 1 + GameState.weaponLevel*0.2);
         this.physics.velocityFromRotation(angle, 100, p.body.velocity);
         this.tweens.add({ targets: p, angle: p.angle + (isEvo ? 720 : 180), duration: isEvo ? 400 : 300 });
@@ -333,12 +399,15 @@ class GameScene extends Phaser.Scene {
       } else if (wType === 'staff') {
         p.setTint(isEvo ? 0xff00ff : 0x00ffff);
         p.setScale(isEvo ? 1.5 : 0.8 + GameState.weaponLevel*0.1);
+        p.setBlendMode(Phaser.BlendModes.ADD);
         this.physics.velocityFromRotation(angle, projSpeed * (isEvo ? 0.8 : 1), p.body.velocity);
+        this.addParticleTrail(p, isEvo ? 0xff00ff : 0x00ffff);
         setTimeout(() => p.destroy(), 1500);
       } else if (wType === 'bow') {
-        p.setTint(isEvo ? 0x00ff00 : 0x8b4513);
+        p.setTexture('bow');
         p.setScale(isEvo ? 1.2 : 0.8);
         this.physics.velocityFromRotation(angle, isEvo ? projSpeed*1.5 : projSpeed, p.body.velocity);
+        this.addParticleTrail(p, 0xffffff);
         setTimeout(() => p.destroy(), 1000);
       }
       p.refreshBody(); p.setCircle(p.width/2);
@@ -353,20 +422,40 @@ class GameScene extends Phaser.Scene {
     }
   }
 
+  addParticleTrail(target: any, color: number) {
+    let p = this.add.particles(0, 0, 'particle', {
+      speed: 20, scale: { start: 1, end: 0 }, alpha: { start: 1, end: 0 },
+      tint: color, lifespan: 300, blendMode: 'ADD'
+    });
+    p.startFollow(target);
+    target.on('destroy', () => { p.stop(); setTimeout(()=>p.destroy(), 300); });
+  }
+
   hitEnemy(p: any, e: any) {
     if(!p.active || !e.active) return;
     if (p.hitList && p.hitList.includes(e)) return;
     
-    let dmg = 10 * GameState.damageMultiplier * (GameState.isEvolved ? 3 : 1);
+    let isCrit = Math.random() < GameState.critChance;
+    let dmg = 10 * GameState.damageMultiplier * (GameState.isEvolved ? 3 : 1) * (isCrit ? GameState.critDamage : 1);
     e.hp -= dmg;
+    
     e.setTintFill(0xffffff);
-    setTimeout(()=> e.clearTint(), 100);
+    if(isCrit) {
+       let tx = this.add.text(e.x, e.y-20, 'CRIT!', {fontFamily: 'Fredoka One', fontSize:'20px', color:'#ff0000', stroke:'#fff', strokeThickness:3}).setDepth(50);
+       this.tweens.add({targets:tx, y:e.y-50, alpha:0, duration:800, onComplete:()=>tx.destroy()});
+    }
+    setTimeout(()=> { if(e.active) e.clearTint(); }, 100);
     
     if (p.isPiercing) { p.hitList.push(e); } 
     else if (GameState.selectedWeapon !== 'sword') { p.destroy(); }
     
     if(e.hp <= 0) {
       this.gems.create(e.x, e.y, 'gem').setDepth(1);
+      let splat = this.add.particles(e.x, e.y, 'particle', {
+        speed: 80, scale: { start: 1.5, end: 0 }, tint: 0x00ff00, lifespan: 400, quantity: 15, blendMode: 'ADD'
+      });
+      splat.explode(15);
+      setTimeout(() => splat.destroy(), 400);
       e.destroy();
     }
   }
@@ -380,7 +469,7 @@ class GameScene extends Phaser.Scene {
   }
 
   getGem(_p: any, g: any) {
-    g.destroy(); this.xp++;
+    g.destroy(); this.xp += GameState.xpBonus;
     if(this.xp>=this.xpNext) {
       this.level++; this.xp=0; this.xpNext=Math.floor(this.xpNext*1.4);
       this.scene.pause();
@@ -420,6 +509,11 @@ class GameScene extends Phaser.Scene {
       { id: 'spd', title: 'Boots of Haste', desc: '+15% Move Speed' },
       { id: 'mag', title: 'Magnet', desc: 'Expand Pickup Range' },
       { id: 'hp', title: 'Heart Container', desc: 'Max HP +20 & Heal' },
+      { id: 'xp', title: 'Tome of Wisdom', desc: '+20% XP Gain' },
+      { id: 'crit', title: 'Sharp Eye', desc: '+15% Crit Chance' },
+      { id: 'critdmg', title: 'Assassin', desc: '+50% Crit Damage' },
+      { id: 'regen', title: 'Regeneration', desc: 'Heal 1 HP / sec' },
+      { id: 'armor', title: 'Iron Skin', desc: '-1 Damage Taken' }
     ];
     
     if (this.hp < GameState.maxHp) optionsPool.push({ id: 'heal', title: 'Potion', desc: 'Restore 50 HP' });
@@ -431,8 +525,8 @@ class GameScene extends Phaser.Scene {
 
     chosenOptions.forEach((opt, i) => {
       let card = this.add.rectangle(0, -80 + i*110, 340, 90, 0x444444).setInteractive({useHandCursor:true});
-      let t1 = this.add.text(0, -100 + i*110, opt.title, {fontSize:'24px', color:'#fff', fontFamily:'Fredoka One'}).setOrigin(0.5);
-      let t2 = this.add.text(0, -70 + i*110, opt.desc, {fontSize:'16px', color:'#aaa', fontFamily:'Fredoka One'}).setOrigin(0.5);
+      let t1 = this.add.text(0, -100 + i*110, opt.title, {fontFamily: 'Fredoka One', fontSize:'24px', color:'#fff', stroke:'#000', strokeThickness:4}).setOrigin(0.5);
+      let t2 = this.add.text(0, -70 + i*110, opt.desc, {fontFamily: 'Fredoka One', fontSize:'16px', color:'#aaa', stroke:'#000', strokeThickness:2}).setOrigin(0.5);
       
       card.on('pointerover', ()=>card.setFillStyle(0x666666));
       card.on('pointerout', ()=>card.setFillStyle(0x444444));
@@ -444,6 +538,11 @@ class GameScene extends Phaser.Scene {
         if (opt.id === 'mag') GameState.magnetRange += 30;
         if (opt.id === 'hp') { GameState.maxHp += 20; this.hp += 20; }
         if (opt.id === 'heal') { this.hp = Math.min(GameState.maxHp, this.hp + 50); }
+        if (opt.id === 'xp') GameState.xpBonus += 0.2;
+        if (opt.id === 'crit') GameState.critChance += 0.15;
+        if (opt.id === 'critdmg') GameState.critDamage += 0.5;
+        if (opt.id === 'regen') GameState.regen += 1;
+        if (opt.id === 'armor') GameState.armor += 1;
         
         this.updateHpBar();
         this.scene.resume();
@@ -455,7 +554,8 @@ class GameScene extends Phaser.Scene {
 
   takeDamage() {
     if(this.hp <= 0) return;
-    this.hp -= 10;
+    let dmg = Math.max(1, 10 - GameState.armor);
+    this.hp -= dmg;
     this.updateHpBar();
     this.cameras.main.shake(100, 0.01);
     if(this.hp <= 0) {
