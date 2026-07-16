@@ -170,8 +170,8 @@ class MenuScene extends Phaser.Scene {
     
     const img = this.add.image(x - cardW/2 + 60, y, tex).setScale(1.2);
     
-    this.add.text(x - cardW/2 + 130, y - 20, name, { fontFamily: 'Fredoka One', fontSize: '28px', color: '#ffd700', stroke: '#000', strokeThickness: 5 }).setOrigin(0, 0.5);
-    this.add.text(x - cardW/2 + 130, y + 20, desc, { fontFamily: 'Fredoka One', fontSize: '18px', color: '#fff' }).setOrigin(0, 0.5);
+    this.add.text(x - cardW/2 + 120, y - 20, name, { fontFamily: 'Fredoka One', fontSize: '24px', color: '#ffd700', stroke: '#000', strokeThickness: 4 }).setOrigin(0, 0.5);
+    this.add.text(x - cardW/2 + 120, y + 20, desc, { fontFamily: 'Fredoka One', fontSize: '15px', color: '#fff' }).setOrigin(0, 0.5);
     
     this.tweens.add({ targets: img, y: y - 5, yoyo: true, repeat: -1, duration: 600 + Math.random()*200, ease: 'Sine.easeInOut' });
     
@@ -262,9 +262,9 @@ class GameScene extends Phaser.Scene {
 
     this.hpBar = this.add.graphics().setScrollFactor(0).setDepth(100);
     this.xpBar = this.add.graphics().setScrollFactor(0).setDepth(100);
-    this.lvlText = this.add.text(this.scale.width - 20, 45, '', { fontFamily: 'Fredoka One', fontSize: '26px', color: '#fff', stroke: '#000', strokeThickness: 5 }).setOrigin(1, 0).setScrollFactor(0).setDepth(100).setShadow(2, 2, '#000', 0, true, true);
+    this.lvlText = this.add.text(this.scale.width - 10, 32, '', { fontFamily: 'Fredoka One', fontSize: '22px', color: '#fff', stroke: '#000', strokeThickness: 4 }).setOrigin(1, 0.5).setScrollFactor(0).setDepth(100).setShadow(2, 2, '#000', 0, true, true);
     this.add.text(12, 13, 'XP', {fontFamily: 'Fredoka One', fontSize: '18px', color: '#0ff', stroke: '#000', strokeThickness: 4}).setScrollFactor(0).setDepth(100);
-    this.add.text(12, 48, 'HP', {fontFamily: 'Fredoka One', fontSize: '18px', color: '#f00', stroke: '#000', strokeThickness: 4}).setScrollFactor(0).setDepth(100);
+    this.add.text(12, 43, 'HP', {fontFamily: 'Fredoka One', fontSize: '18px', color: '#f00', stroke: '#000', strokeThickness: 4}).setScrollFactor(0).setDepth(100);
     this.updUI();
 
     this.joyBase = this.add.circle(0,0,50,0xffffff,0.2).setScrollFactor(0).setDepth(90).setVisible(false);
@@ -300,7 +300,7 @@ class GameScene extends Phaser.Scene {
   }
   
   onResize(gs: Phaser.Structs.Size) {
-    if(this.lvlText) this.lvlText.setX(gs.width - 20);
+    if(this.lvlText) this.lvlText.setPosition(gs.width - 10, 32);
     this.updUI();
   }
   
@@ -513,12 +513,13 @@ class GameScene extends Phaser.Scene {
 
   updateHpBar() {
     this.hpBar.clear();
-    this.hpBar.lineStyle(4, 0xffffff); this.hpBar.strokeRect(10, 50, 300, 20);
-    this.hpBar.fillStyle(0xff0000); this.hpBar.fillRect(12, 52, 296 * (this.hp / GameState.maxHp), 16);
+    const bw = Math.min(this.scale.width - 120, 300);
+    this.hpBar.lineStyle(4, 0xffffff); this.hpBar.strokeRect(50, 45, bw, 20);
+    this.hpBar.fillStyle(0xff0000); this.hpBar.fillRect(52, 47, (bw - 4) * (this.hp / GameState.maxHp), 16);
   }
 
   updUI(){ 
-    const bw = Math.min(this.scale.width - 100, 300);
+    const bw = Math.min(this.scale.width - 120, 300);
     this.xpBar.clear();
     this.xpBar.fillStyle(0x000000, 0.8); this.xpBar.fillRect(50, 15, bw, 20);
     this.xpBar.fillStyle(0x00ffff, 1); this.xpBar.fillRect(52, 17, (bw-4) * (this.xp/this.xpNext), 16);
