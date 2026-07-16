@@ -1,8 +1,8 @@
 import Phaser from 'phaser';
-import playerSwordImg from '../public/assets/player_sword.png';
-import playerStaffImg from '../public/assets/player_staff.png';
-import playerBowImg from '../public/assets/player_bow.png';
-import slimeImg from '../public/assets/slime.png';
+import playerSwordImg from '../public/assets/player_sword.svg';
+import playerStaffImg from '../public/assets/player_staff.svg';
+import playerBowImg from '../public/assets/player_bow.svg';
+import slimeImg from '../public/assets/slime.svg';
 import bgImg from '../public/assets/bg.png';
 
 type WeaponType = 'sword' | 'staff' | 'bow';
@@ -198,14 +198,14 @@ class GameScene extends Phaser.Scene {
     this.crates = this.physics.add.group();
 
     // Player setup
-    this.playerShadow = this.add.image(0, 25, 'shadow').setDepth(4);
-    this.playerVisual = this.add.image(0, 0, `player_${GameState.selectedWeapon}`).setScale(1).setDepth(10);
-    this.weaponVisual = this.add.image(15, 0, GameState.selectedWeapon).setDepth(11);
-    
     this.playerBody = this.physics.add.sprite(0, 0, 'particle').setVisible(false);
     this.playerBody.setCollideWorldBounds(true).setCircle(20);
     this.cameras.main.startFollow(this.playerBody);
-
+    
+    this.playerShadow = this.add.image(0, 15, 'shadow').setScale(1.2).setDepth(4);
+    this.playerVisual = this.add.image(0, 0, `player_${GameState.selectedWeapon}`).setScale(0.5).setDepth(10);
+    this.weaponVisual = this.add.image(15, 0, GameState.selectedWeapon).setDepth(11);
+    
     this.physics.add.collider(this.playerBody, this.rocks);
     this.physics.add.collider(this.enemies, this.rocks);
     this.physics.add.collider(this.enemies, this.enemies); 
@@ -325,8 +325,8 @@ class GameScene extends Phaser.Scene {
     let a=Math.random()*Math.PI*2, d=Math.max(this.scale.width, this.scale.height)/1.2;
     let sx = this.playerBody.x+Math.cos(a)*d, sy = this.playerBody.y+Math.sin(a)*d;
     let e = this.enemies.create(sx, sy, 'slime') as any;
-    e.setScale(1).setDepth(5).hp = 10 * GameState.weaponLevel;
-    e.setCircle(20, 12, 12);
+    e.setScale(0.5).setDepth(5).hp = 10 * GameState.weaponLevel;
+    e.setCircle(45, 19, 19);
     
     let sh = this.add.image(sx, sy, 'shadow').setScale(0.8).setDepth(4);
     e.setData('shadow', sh);
